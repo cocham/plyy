@@ -53,7 +53,9 @@
                 const curatorInfo = data.curator.c_info;
                 const playlist = data.curator.plyy;
                 const Cliked = data.curator.c_info.c_liked; // 서버에서 받은 큐레이터 좋아요 상태
-                console.log(Cliked)
+                const plikedValues = playlist.map(item => item.pliked); // playlist 배열의 각 항목에서 pliked 값을 추출
+                console.log(plikedValues)
+                
                 // curator 정보를 HTML로 만들어서 출력
                 const curatorInfoContainer = document.getElementById('curator-info-container');
                 curatorInfoContainer.innerHTML = `
@@ -90,10 +92,10 @@
                             <div class="playlist-tags">
                                 <strong>Tags:</strong> ${item.ptag.join(', ')}
                             </div>
-                            // <svg id="heartIcon" width="46" height="46" viewBox="0 0 46 46" fill="${Cliked ? '#FF0000' : 'none'}" xmlns="http://www.w3.org/2000/svg">
-                            //     <rect width="46" height="46" rx="23" fill="#F15A22"/>
-                            //     <path id="heartPath" d="M23.775 34.0125C23.35 34.1625 22.65 34.1625 22.225 34.0125C18.6 32.775 10.5 27.6125 10.5 18.8625C10.5 15 13.6125 11.875 17.45 11.875C19.725 11.875 21.7375 12.975 23 14.675C24.2625 12.975 26.2875 11.875 28.55 11.875C32.3875 11.875 35.5 15 35.5 18.8625C35.5 27.6125 27.4 32.775 23.775 34.0125Z" stroke="#F5F5F5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            // </svg>
+                            <svg id="heartIcon" width="46" height="46" viewBox="0 0 46 46" fill="${Pliked ? '#FF0000' : 'none'}" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="46" height="46" rx="23" fill="#F15A22"/>
+                                <path id="heartPath" d="M23.775 34.0125C23.35 34.1625 22.65 34.1625 22.225 34.0125C18.6 32.775 10.5 27.6125 10.5 18.8625C10.5 15 13.6125 11.875 17.45 11.875C19.725 11.875 21.7375 12.975 23 14.675C24.2625 12.975 26.2875 11.875 28.55 11.875C32.3875 11.875 35.5 15 35.5 18.8625C35.5 27.6125 27.4 32.775 23.775 34.0125Z" stroke="#F5F5F5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
                         </div>
                     `;
                 });

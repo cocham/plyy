@@ -114,7 +114,6 @@ def mypage():
 
 @app.route('/login',methods=['GET','POST'])
 def login():
-    # print(session)
     if request.method == 'POST':
 
         conn,cur = connect_db()
@@ -142,11 +141,21 @@ def login():
 
 @app.route('/curator/<c_uuid>')
 def curator(c_uuid):
-    # print(session)
-    return render_template('test5.html')
+    return render_template('test6.html')
 
+#큐레이터 좋아요 상태 확인 함수
+def curatorlike_status(c_uuid,u_uuid):
+    conn,cur = connect_db()
 
-# 좋아요 추가 함수
+    cur.execute('SELECT * FROM CURATOR_LIKE WHERE c_uuid = ? and u_uuid = ?',(c_uuid,u_uuid))
+    likes = cur.fetchone()
+    conn.close()
+    if likes:
+        return True
+    else:
+        return False
+    
+# 큐레이터 좋아요 추가 함수
 def curator_like(c_uuid, u_uuid):
     conn, cur = connect_db()
 
@@ -176,7 +185,7 @@ def curator_like(c_uuid, u_uuid):
         conn.close()
         return False
 
-# 좋아요 추가 API 엔드포인트
+# 큐레이터 좋아요 추가 API 엔드포인트
 @app.route('/plyy/api/like/<u_id>/<c_uuid>', methods=['POST'])
 def like_curator(u_id, c_uuid):
     conn,cur = connect_db()
@@ -184,10 +193,8 @@ def like_curator(u_id, c_uuid):
     u_uuid = cur.fetchone()['u_uuid']
     conn.close()
 
-    # print(u_uuid)
     success = curator_like(c_uuid, u_uuid)
 
-    # print(success)
     if success:
         return jsonify({'success': True}), 200
     else:
@@ -222,7 +229,7 @@ def curator_unlike(c_uuid, u_uuid):
         conn.close()
         return False
     
-# 좋아요 취소 API 엔드포인트
+# 큐레이터 좋아요 취소 API 엔드포인트
 @app.route('/plyy/api/unlike/<u_id>/<c_uuid>', methods=['DELETE'])
 def unlike_curator(u_id, c_uuid):
     # 해당 유저와 큐레이터에 대한 좋아요 정보를 삭제
@@ -231,27 +238,119 @@ def unlike_curator(u_id, c_uuid):
     u_uuid = cur.fetchone()['u_uuid']
     conn.close()
 
-    # print(u_uuid)
     success = curator_unlike(c_uuid, u_uuid)
     if success:
         return jsonify({'success': True}), 200
     else:
         return jsonify({'success': False}), 500
 
-#큐레이터 좋아요 상태 확인 함수
-def curatorlike_status(c_uuid,u_uuid):
-    conn,cur = connect_db()
 
-    cur.execute('SELECT * FROM CURATOR_LIKE WHERE c_uuid = ? and u_uuid = ?',(c_uuid,u_uuid))
-    likes = cur.fetchone()
-    conn.close()
-    if likes:
-        return True
-    else:
-        return False
     
 #플리 좋아요 상태 확인 함수
-def plyylike_status(pidlist,u_uuid)
+def plyylike_status(pidlist,u_uuid):
+    conn,cur = connect_db()
+    plikestatus = []
+    for i in range(len(pidlist)): 
+        cur.execute('SELECT * FROM PLYY_LIKE WHERE plyy_uuid = ? and u_uuid = ?',(pidlist[i],u_uuid))
+        likes = cur.fetchone()
+        if likes:
+            plikestatus.append(True)
+        else:
+            plikestatus.append(False)
+    conn.close()
+
+    return dict(zip(pidlist,plikestatus))
+
+# 플리 좋아요 추가 함수 
+def plyy_like(plyy_uuid,u_uuid):
+    conn, cur = connect_db()
+
+    pl_uuid = str(uuid4())
+    print(plyy_uuid)
+    try:
+        # WHERE 조건으로 존재 여부 확인
+        cur.execute('''
+            SELECT * FROM PLYY_LIKE
+            WHERE u_uuid = ? AND plyy_uuid = ?
+        ''', (u_uuid, plyy_uuid))
+
+        row = cur.fetchone()
+
+        if not row:
+            cur.execute('''
+                INSERT INTO PLYY_LIKE (pl_uuid, u_uuid, plyy_uuid)
+                VALUES (?, ?, ?)
+            ''', (pl_uuid, u_uuid, plyy_uuid))
+            conn.commit()  # INSERT 후에 커밋
+
+        conn.close()
+        return True
+    
+    except Exception as e:
+        print(f"Error inserting like: {e}")
+        conn.rollback()
+        conn.close()
+        return False
+
+# 플리 좋아요 추가 API 엔드포인트
+@app.route('/plyy/api/plyylike/<u_id>/<plyy_uuid>', methods=['POST'])
+def like_plyy(u_id, plyy_uuid):
+    conn,cur = connect_db()
+    cur.execute('SELECT u_uuid FROM USER WHERE u_email = ?',(u_id,))
+    u_uuid = cur.fetchone()['u_uuid']
+    conn.close()
+
+    success = plyy_like(plyy_uuid, u_uuid)
+
+    if success:
+        return jsonify({'success': True}), 200
+    else:
+        return jsonify({'success': False}), 500
+
+#플리 좋아요 취소 함수
+def plyy_unlike(plyy_uuid, u_uuid):
+    conn, cur = connect_db()
+
+    try:
+        # WHERE 조건으로 존재 여부 확인
+        cur.execute('''
+            SELECT * FROM PLYY_LIKE
+            WHERE u_uuid = ? AND plyy_uuid = ?
+        ''', (u_uuid, plyy_uuid))
+
+        row = cur.fetchone()
+
+        if row:
+            cur.execute('''
+                DELETE FROM PLYY_LIKE
+                WHERE u_uuid = ? AND plyy_uuid = ?
+            ''', (u_uuid, plyy_uuid))
+            conn.commit()  # DELETE 후에 커밋
+
+        conn.close()
+        return True
+    
+    except Exception as e:
+        print(f"Error inserting like: {e}")
+        conn.rollback()
+        conn.close()
+        return False
+    
+# 플리 좋아요 취소 API 엔드포인트
+@app.route('/plyy/api/plyyunlike/<u_id>/<plyy_uuid>', methods=['DELETE'])
+def unlike_plyy(u_id, plyy_uuid):
+    # 해당 유저와 큐레이터에 대한 좋아요 정보를 삭제
+    conn,cur = connect_db()
+    cur.execute('SELECT u_uuid FROM USER WHERE u_email = ?',(u_id,))
+    u_uuid = cur.fetchone()['u_uuid']
+    conn.close()
+
+    success = plyy_unlike(plyy_uuid, u_uuid)
+    if success:
+        return jsonify({'success': True}), 200
+    else:
+        return jsonify({'success': False}), 500
+
 
 
 @app.route('/plyy/api/curator/<c_uuid>', methods = ['get'])
@@ -268,7 +367,8 @@ def api_curator(c_uuid):
                 'pgen':plyy[3],
                 'pupdate':plyy[4],
                 'pcmt':plyy[5],
-                'ptag':plyy[8]
+                'ptag':plyy[8],
+                'pliked':None
         }
         play_lists.append(plyy_data)
 
@@ -279,16 +379,16 @@ def api_curator(c_uuid):
             conn,cur = connect_db()
             cur.execute('SELECT u_uuid from user where u_email = ?',(session['id'],))
             u_uuid = cur.fetchone()['u_uuid']
+            conn.close()
 
             c_isliked = curatorlike_status(c_uuid,u_uuid) #True/False
-            
-            p_isliked = plyylike_status(pidlist,u_uuid)
+            p_isliked = plyylike_status(pidlist,u_uuid) # {'plyy_2a8cc702-67ee-4377-8310-cd9689b98c19': False, '554605l': False}
 
-            conn.close()
-    else:
-        c_isliked = None
+            for i in range(len(play_lists)):
+                play_lists[i]['pliked'] = p_isliked[play_lists[i]['pid']]
 
-
+        else:
+            c_isliked = None
 
     return jsonify({
         'curator':{
@@ -303,7 +403,6 @@ def api_curator(c_uuid):
             'plyy':play_lists
         }
     })
-
 
 
 if __name__ == "__main__":
