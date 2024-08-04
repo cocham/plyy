@@ -1,0 +1,189 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        /* 간단한 스타일링 */
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+        }
+        .curator-info {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 20px;
+        }
+        .curator-img {
+            max-width: 100%;
+            height: auto;
+        }
+        .curator-tags {
+            margin-top: 8px;
+        }
+        .playlist-item {
+            margin-bottom: 16px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 16px;
+        }
+        .playlist-img {
+            max-width: 100px;
+            height: auto;
+            margin-right: 10px;
+        }
+        .playlist-tags {
+            margin-top: 8px;
+            font-size: 0.9em;
+            color: #666;
+        }
+    </style>
+<body>
+    <div id="curator-info-container"></div>
+    <form action="/logout" method="POST">
+        <button type="submit">로그아웃</button>
+    </form>
+    <script>
+    let heartFilled = false; // 큐레이터 하트 상태
+    let playlistLikeStates = {}; // 플레이리스트 항목 좋아요 상태
+
+    function fetchCuratorData(c_id) {
+        fetch(`/plyy/api/curator/${encodeURIComponent(c_id)}`)
+            .then(response => response.json())
+            .then(data => {
+                const curatorInfo = data.curator.c_info;
+                const playlist = data.curator.plyy;
+                const Cliked = data.curator.c_info.c_liked; // 서버에서 받은 좋아요 상태
+
+                // curator 정보를 HTML로 만들어서 출력
+                const curatorInfoContainer = document.getElementById('curator-info-container');
+                curatorInfoContainer.innerHTML = `
+                    <div class="curator-info">
+                        <h2>${curatorInfo.c_name}</h2>
+                        <img class="curator-img" src="${curatorInfo.c_img}" alt="Curator Image">
+                        <p>${curatorInfo.c_intro}</p>
+                        <div class="curator-tags">
+                            <strong>Tags:</strong> ${curatorInfo.c_tags.join(', ')}
+                        </div>
+                        <svg id="CheartIcon" width="46" height="46" viewBox="0 0 46 46" fill="${Cliked ? '#FF0000' : 'none'}" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="46" height="46" rx="23" fill="#F15A22"/>
+                            <path id="CheartPath" d="M23.775 34.0125C23.35 34.1625 22.65 34.1625 22.225 34.0125C18.6 32.775 10.5 27.6125 10.5 18.8625C10.5 15 13.6125 11.875 17.45 11.875C19.725 11.875 21.7375 12.975 23 14.675C24.2625 12.975 26.2875 11.875 28.55 11.875C32.3875 11.875 35.5 15 35.5 18.8625C35.5 27.6125 27.4 32.775 23.775 34.0125Z" stroke="#F5F5F5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                `;
+
+                // 큐레이터 좋아요 상태에 따라 하트 채우기
+                const CheartPath = document.getElementById('CheartPath');
+                heartFilled = Cliked; // 현재 하트 상태를 설정
+                if (heartFilled) {
+                    CheartPath.setAttribute('fill', '#FF0000'); // 채워진 상태로 설정
+                } else {
+                    CheartPath.setAttribute('fill', '#F5F5F5'); // 비워진 상태로 설정
+                }
+
+                // playlist 출력
+                playlist.forEach(item => {
+                    curatorInfoContainer.innerHTML += `
+                        <div class="playlist-item">
+                            <h3>${item.ptitle}</h3>
+                            <img class="playlist-img" src="${item.pimg}" alt="Playlist Image">
+                            <p>${item.pcmt}</p>
+                            <div class="playlist-tags">
+                                <strong>Tags:</strong> ${item.ptag.join(', ')}
+                            </div>
+                            <svg class="like-button" id="like-${item.pid}" width="46" height="46" viewBox="0 0 46 46" fill="${item.pliked ? '#FF0000' : '#F5F5F5'}" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="46" height="46" rx="23" fill="#F15A22"/>
+                                <path d="M23.775 34.0125C23.35 34.1625 22.65 34.1625 22.225 34.0125C18.6 32.775 10.5 27.6125 10.5 18.8625C10.5 15 13.6125 11.875 17.45 11.875C19.725 11.875 21.7375 12.975 23 14.675C24.2625 12.975 26.2875 11.875 28.55 11.875C32.3875 11.875 35.5 15 35.5 18.8625C35.5 27.6125 27.4 32.775 23.775 34.0125Z" stroke="#F5F5F5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                    `;
+                });
+
+                // 큐레이터 하트 클릭 이벤트 처리
+                const CheartIcon = document.getElementById('CheartIcon');
+                CheartIcon.addEventListener('click', function() {
+                    const loggedIn = "{{ session['id'] }}";
+                    if (loggedIn) {
+                        CtoggleLike("{{ session['id'] }}", c_id);
+                    } else {
+                        alert('로그인이 필요합니다.');
+                        location.href = "/login"
+                    }
+                });
+            
+                // 플레이리스트 좋아요 버튼 클릭 이벤트 처리
+                document.querySelectorAll('.like-button').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const pid = this.id.split('like-')[1];
+                        const loggedIn = "{{ session['id'] }}";
+                        if (loggedIn) {
+                            PlaylistToggleLike("{{ session['id'] }}", pid);
+                        } else {
+                            alert('로그인이 필요합니다.');
+                        }
+                    });
+                });
+            })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                });
+    }
+
+    window.onload = function() {
+        let url = window.location.href.split('/')
+        let c_id = url[url.length - 1]
+        fetchCuratorData(c_id);
+    };
+
+    function CtoggleLike(u_id, c_id) {
+        const CheartPath = document.getElementById('CheartPath');
+        const method = heartFilled ? 'DELETE' : 'POST';
+        const url = heartFilled ? `/plyy/api/unlike/${encodeURIComponent(u_id)}/${encodeURIComponent(c_id)}` : `/plyy/api/like/${encodeURIComponent(u_id)}/${encodeURIComponent(c_id)}`;
+
+        fetch(url, { method: method })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    heartFilled = !heartFilled; // 하트 상태 토글
+                    if (heartFilled) {
+                        CheartPath.setAttribute('fill', '#FF0000'); // 채워진 상태로 변경
+                    } else {
+                        CheartPath.setAttribute('fill', '#F5F5F5'); // 비워진 상태로 변경
+                    }
+                } else {
+                    console.error('Failed to toggle like:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error toggling like:', error);
+            });
+    }
+
+    function PlaylistToggleLike(u_id, pid) {
+        const likeButton = document.getElementById(`like-${pid}`);
+        const method = playlistLikeStates[pid] ? 'DELETE' : 'POST';
+        const url = playlistLikeStates[pid] ? `/plyy/api/plyyunlike/${encodeURIComponent(u_id)}/${encodeURIComponent(pid)}` : `/plyy/api/plyylike/${encodeURIComponent(u_id)}/${encodeURIComponent(pid)}`;
+
+        fetch(url, { method: method })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    playlistLikeStates[pid] = !playlistLikeStates[pid]; // 좋아요 상태 토글
+                    if (playlistLikeStates[pid]) {
+                        likeButton.setAttribute('fill', '#FF0000'); // 채워진 상태로 변경
+                    } else {
+                        likeButton.setAttribute('fill', '#F5F5F5'); // 비워진 상태로 변경
+                    }
+                } else {
+                    console.error('Failed to toggle like:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error toggling like:', error);
+            });
+    }
+</script>
+</body>
+</html>
